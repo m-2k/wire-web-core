@@ -41,14 +41,13 @@ export default class Account {
   private registerNewClient(): Promise<RegisteredClient> {
     return this.cryptobox.create()
       .then((initialPreKeys: Array<Proteus.keys.PreKey>) => {
-        let serializedPreKeys: Array<Object> = [];
-
-        initialPreKeys.forEach((preKey) => {
-          const preKeyJson: { id: number, key: string } = this.cryptobox.serialize_prekey(preKey);
-          if (preKeyJson.id !== 65535) {
-            serializedPreKeys.push(preKeyJson);
-          }
-        });
+        const serializedPreKeys: Array<Object> = initialPreKeys
+          .map((preKey) => {
+            const preKeyJson: { id: number, key: string } = this.cryptobox.serialize_prekey(preKey);
+            if (preKeyJson.id !== 65535) return preKeyJson;
+            return undefined;
+          })
+          .filter((serializedPreKey) => serializedPreKey);
 
         // TODO: Make the client values configurable from outside
         const newClient: NewClient = {
@@ -117,10 +116,7 @@ export default class Account {
   }
 
   private encryptPayloadForSession(sessionId: string, typedArray: Uint8Array, decodedPreKeyBundle: Uint8Array): Promise<SessionPayloadBundle> {
-    return Promise.resolve()
-      .then(() => {
-        return this.cryptobox.encrypt(sessionId, typedArray, decodedPreKeyBundle.buffer);
-      })
+    return this.cryptobox.encrypt(sessionId, typedArray, decodedPreKeyBundle.buffer)
       .then((encryptedPayload) => Encoder.toBase64(encryptedPayload).asString)
       .catch((error) => '💣')
       .then((encryptedPayload) => ({sessionId, encryptedPayload}));
@@ -153,11 +149,7 @@ export default class Account {
             const sessionId: string = payload.sessionId;
             const encrypted: string = payload.encryptedPayload;
             const [userId, clientId] = this.dismantleSessionId(sessionId);
-
-            if (recipients[userId] === undefined) {
-              recipients[userId] = {};
-            }
-
+            recipients[userId] = recipients[userId] || {};
             recipients[userId][clientId] = encrypted;
           });
         }
@@ -188,16 +180,9 @@ export default class Account {
   }
 
   public decrypt(event: BackendEvent): Promise<Uint8Array> {
-    return new Promise((resolve, reject) => {
-      const ciphertext: string = event.data.text;
-      const sessionId: string = this.constructSessionId(event.from, event.data.sender);
-
-      if (ciphertext === undefined) {
-        return reject(new Error('Ciphertext is missing.'));
-      } else {
-        const messageBytes: Uint8Array = Decoder.fromBase64(ciphertext).asBytes;
-        this.cryptobox.decrypt(sessionId, messageBytes.buffer).then(resolve).catch(reject);
-      }
-    });
+    const ciphertext: string = event.data.text;
+    const sessionId: string = this.constructSessionId(event.from, event.data.sender);
+    const messageBytes: Uint8Array = Decoder.fromBase64(ciphertext).asBytes;
+    return this.cryptobox.decrypt(sessionId, messageBytes.buffer);
   }
 }
