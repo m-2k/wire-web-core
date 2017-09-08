@@ -115,9 +115,9 @@ export default class Account {
     const recipients: OTRPayloadBundle = {};
     const encryptions: Array<Promise<SessionPayloadBundle>> = [];
 
-    for (let userId in preKeyBundles) {
+    for (const userId in preKeyBundles) {
       recipients[userId] = {};
-      for (let clientId in preKeyBundles[userId]) {
+      for (const clientId in preKeyBundles[userId]) {
         const preKeyPayload = preKeyBundles[userId][clientId];
         const preKey = preKeyPayload.key;
 
