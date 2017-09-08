@@ -8,6 +8,7 @@ import {CRUDEngine} from '@wireapp/store-engine/dist/commonjs/engine';
 import {Cryptobox, store} from 'wire-webapp-cryptobox';
 import {Encoder, Decoder} from 'bazinga64';
 import {NewClient, RegisteredClient} from '@wireapp/api-client/dist/commonjs/client/index';
+import {RecordNotFoundError} from "@wireapp/store-engine/dist/commonjs/engine/error";
 import {UserClientPreKeyMap} from '@wireapp/api-client/dist/commonjs/user';
 
 export default class Account {
@@ -73,26 +74,14 @@ export default class Account {
       .then(() => this.client);
   }
 
-  private getClientId(context: Context): Promise<string> {
-    return Promise.resolve()
-      .then(() => {
-        if (context.clientID) return context.clientID;
-
-        return this.storeEngine.read<RegisteredClient>(Account.STORES.CLIENTS, store.CryptoboxCRUDStore.KEYS.LOCAL_IDENTITY)
-          .then((client: RegisteredClient) => client.id)
-          .catch((error: Error) => undefined);
-      });
-  }
-
   private initClient(context: Context): Promise<RegisteredClient> {
     this.context = context;
-
-    return this.getClientId(context)
-      .then((clientID: string) => {
-        if (clientID) {
-          return this.loadExistingClient();
+    return this.loadExistingClient()
+      .catch((error) => {
+        if (error instanceof RecordNotFoundError) {
+          return this.registerNewClient();
         }
-        return this.registerNewClient();
+        throw error;
       });
   }
 
