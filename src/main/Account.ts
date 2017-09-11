@@ -2,14 +2,15 @@ import * as Proteus from 'wire-webapp-proteus';
 import BackendEvent from './BackendEvent';
 import Client = require('@wireapp/api-client');
 import SessionPayloadBundle from './SessionPayloadBundle';
-import {ClientMismatch, OTRPayloadBundle, UserClients} from '@wireapp/api-client/src/main/conversation';
+import {ClientMismatch, OTRRecipients, UserClients, NewOTRMessage} from '@wireapp/api-client/src/main/conversation';
 import {Context, LoginData} from '@wireapp/api-client/dist/commonjs/auth';
 import {CRUDEngine} from '@wireapp/store-engine/dist/commonjs/engine';
 import {Cryptobox, store} from 'wire-webapp-cryptobox';
 import {Encoder, Decoder} from 'bazinga64';
 import {NewClient, RegisteredClient} from '@wireapp/api-client/dist/commonjs/client/index';
+import {PreKey} from '@wireapp/api-client/dist/commonjs/auth';
 import {RecordNotFoundError} from "@wireapp/store-engine/dist/commonjs/engine/error";
-import {UserClientPreKeyMap} from '@wireapp/api-client/dist/commonjs/user';
+import {UserPreKeyBundleMap} from '@wireapp/api-client/dist/commonjs/user';
 
 export default class Account {
   private apiClient: Client;
@@ -42,9 +43,9 @@ export default class Account {
   private registerNewClient(): Promise<RegisteredClient> {
     return this.cryptobox.create()
       .then((initialPreKeys: Array<Proteus.keys.PreKey>) => {
-        const serializedPreKeys: Array<Object> = initialPreKeys
+        const serializedPreKeys: Array<PreKey> = initialPreKeys
           .map((preKey) => {
-            const preKeyJson: { id: number, key: string } = this.cryptobox.serialize_prekey(preKey);
+            const preKeyJson: PreKey = this.cryptobox.serialize_prekey(preKey);
             if (preKeyJson.id !== 65535) return preKeyJson;
             return undefined;
           })
@@ -66,7 +67,7 @@ export default class Account {
 
         return newClient;
       })
-      .then((newClient: NewClient) => this.apiClient.client.api.postClients(newClient))
+      .then((newClient: NewClient) => this.apiClient.client.api.postClient(newClient))
       .then((client: RegisteredClient) => {
         this.client = client;
         return this.storeEngine.create(Account.STORES.CLIENTS, store.CryptoboxCRUDStore.KEYS.LOCAL_IDENTITY, client);
@@ -111,8 +112,8 @@ export default class Account {
       .then((encryptedPayload) => ({sessionId, encryptedPayload}));
   }
 
-  public encrypt(typedArray: Uint8Array, preKeyBundles: UserClientPreKeyMap): Promise<OTRPayloadBundle> {
-    const recipients: OTRPayloadBundle = {};
+  public encrypt(typedArray: Uint8Array, preKeyBundles: UserPreKeyBundleMap): Promise<OTRRecipients> {
+    const recipients: OTRRecipients = {};
     const encryptions: Array<Promise<SessionPayloadBundle>> = [];
 
     for (const userId in preKeyBundles) {
@@ -131,7 +132,7 @@ export default class Account {
 
     return Promise.all(encryptions)
       .then((payloads: Array<SessionPayloadBundle>) => {
-        const recipients: OTRPayloadBundle = {};
+        const recipients: OTRRecipients = {};
 
         if (payloads) {
           payloads.forEach((payload: SessionPayloadBundle) => {
@@ -152,13 +153,17 @@ export default class Account {
     return this.apiClient.connect();
   }
 
-  public sendMessage(conversationId: string, payload: OTRPayloadBundle): Promise<ClientMismatch | UserClientPreKeyMap> {
-    return this.apiClient.conversation.api.postConversations(this.context.clientID, conversationId, payload);
+  public sendMessage(conversationId: string, recipients: OTRRecipients): Promise<ClientMismatch> {
+    const message: NewOTRMessage = {
+      recipients: recipients,
+      sender: this.context.clientID
+    };
+    return this.apiClient.conversation.api.postOTRMessage(this.context.clientID, conversationId, message);
   }
 
   // TODO: The correct functionality of this function is heavily based on the case that it always runs into the catch block
-  public getPreKeyBundles(conversationId: string): Promise<ClientMismatch | UserClientPreKeyMap> {
-    return this.apiClient.conversation.api.postConversations(this.context.clientID, conversationId, undefined)
+  public getPreKeyBundles(conversationId: string): Promise<ClientMismatch | UserPreKeyBundleMap> {
+    return this.apiClient.conversation.api.postOTRMessage(this.context.clientID, conversationId)
       .catch((error) => {
         if (error.response && error.response.status === 412) {
           const recipients: UserClients = error.response.data.missing;
