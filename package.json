@@ -1,7 +1,7 @@
 {
   "author": "Wire",
   "dependencies": {
-    "@wireapp/api-client": "0.1.9",
+    "@wireapp/api-client": "0.1.11",
     "@wireapp/store-engine": "0.1.0",
     "bazinga64": "5.0.3",
     "protobufjs": "6.8.0",
@@ -13,15 +13,15 @@
     "cross-env": "5.0.5",
     "istanbul": "0.4.5",
     "jasmine": "2.8.0",
-    "karma": "1.7.0",
+    "karma": "1.7.1",
     "karma-chrome-launcher": "2.2.0",
     "karma-jasmine": "1.1.0",
     "karma-jasmine-diff-reporter": "1.1.0",
     "karma-sourcemap-loader": "0.3.7",
-    "prettier": "1.5.3",
+    "prettier": "1.6.1",
     "rimraf": "2.6.1",
-    "typescript": "2.4.2",
-    "webpack": "3.5.5"
+    "typescript": "2.5.2",
+    "webpack": "3.5.6"
   },
   "description": "Wire API Client to send and receive data.",
   "license": "GPL-3.0",
@@ -38,7 +38,7 @@
     "url": "git+https://github.com/wireapp/wire-web-core.git"
   },
   "scripts": {
-    "clear": "rimraf dist/commonjs && rimraf dist/demo-bundle.js",
+    "clear": "rimraf dist",
     "coverage": "istanbul cover --report html ./node_modules/jasmine/bin/jasmine.js",
     "dist": "npm run clear && tsc",
     "dist:browser": "npm run dist && webpack --config ./webpack.browser.js",
