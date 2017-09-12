@@ -1,5 +1,4 @@
 import * as Proteus from 'wire-webapp-proteus';
-import BackendEvent from './BackendEvent';
 import Client = require('@wireapp/api-client');
 import SessionPayloadBundle from './SessionPayloadBundle';
 import {ClientMismatch, OTRRecipients, UserClients, NewOTRMessage} from '@wireapp/api-client/src/main/conversation';
@@ -8,6 +7,7 @@ import {CRUDEngine} from '@wireapp/store-engine/dist/commonjs/engine';
 import {Cryptobox, store} from 'wire-webapp-cryptobox';
 import {Encoder, Decoder} from 'bazinga64';
 import {NewClient, RegisteredClient} from '@wireapp/api-client/dist/commonjs/client/index';
+import {OTRMessageAdd} from '@wireapp/api-client/dist/commonjs/conversation/event';
 import {PreKey} from '@wireapp/api-client/dist/commonjs/auth';
 import {RecordNotFoundError} from "@wireapp/store-engine/dist/commonjs/engine/error";
 import {UserPreKeyBundleMap} from '@wireapp/api-client/dist/commonjs/user';
@@ -173,7 +173,7 @@ export default class Account {
       });
   }
 
-  public decrypt(event: BackendEvent): Promise<Uint8Array> {
+  public decrypt(event: OTRMessageAdd): Promise<Uint8Array> {
     const ciphertext: string = event.data.text;
     const sessionId: string = this.constructSessionId(event.from, event.data.sender);
     const messageBytes: Uint8Array = Decoder.fromBase64(ciphertext).asBytes;
