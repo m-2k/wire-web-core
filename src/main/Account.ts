@@ -156,7 +156,7 @@ export default class Account {
   public sendMessage(conversationId: string, recipients: OTRRecipients): Promise<ClientMismatch> {
     const message: NewOTRMessage = {
       recipients,
-      sender: this.context.clientID
+      sender: this.context.clientID,
     };
     return this.apiClient.conversation.api.postOTRMessage(this.context.clientID, conversationId, message);
   }
