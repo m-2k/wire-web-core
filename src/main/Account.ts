@@ -167,7 +167,7 @@ export default class Account {
       .catch((error) => {
         if (error.response && error.response.status === 412) {
           const recipients: UserClients = error.response.data.missing;
-          return this.apiClient.user.api.getPreKeys(recipients);
+          return this.apiClient.user.api.postMultiPreKeyBundles(recipients);
         }
         throw error;
       });
