@@ -1,7 +1,7 @@
 {
   "author": "Wire",
   "dependencies": {
-    "@wireapp/api-client": "0.1.13",
+    "@wireapp/api-client": "0.1.14",
     "@wireapp/store-engine": "0.1.0",
     "bazinga64": "5.0.3",
     "protobufjs": "6.8.0",
