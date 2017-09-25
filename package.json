@@ -23,7 +23,7 @@
     "typescript": "2.5.2",
     "webpack": "3.5.6"
   },
-  "description": "Wire API Client to send and receive data.",
+  "description": "Wire for Web's communication core.",
   "license": "GPL-3.0",
   "lint-staged": {
     "*.ts": [
