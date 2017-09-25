@@ -9,8 +9,9 @@ import {Encoder, Decoder} from 'bazinga64';
 import {NewClient, RegisteredClient} from '@wireapp/api-client/dist/commonjs/client/index';
 import {OTRMessageAdd} from '@wireapp/api-client/dist/commonjs/conversation/event';
 import {PreKey} from '@wireapp/api-client/dist/commonjs/auth';
-import {RecordNotFoundError} from "@wireapp/store-engine/dist/commonjs/engine/error";
+import {RecordNotFoundError} from '@wireapp/store-engine/dist/commonjs/engine/error';
 import {UserPreKeyBundleMap} from '@wireapp/api-client/dist/commonjs/user';
+import {WebSocketClient} from '@wireapp/api-client/dist/commonjs/tcp/';
 
 export default class Account {
   private apiClient: Client;
@@ -148,8 +149,8 @@ export default class Account {
       });
   }
 
-  public listen(callback: Function): Promise<WebSocket> {
-    this.apiClient.on(Client.TOPIC.WEB_SOCKET_MESSAGE, (notification: any) => callback(notification));
+  public listen(callback: Function): Promise<WebSocketClient> {
+    this.apiClient.transport.ws.on(WebSocketClient.TOPIC.ON_MESSAGE, (notification: any) => callback(notification));
     return this.apiClient.connect();
   }
 
