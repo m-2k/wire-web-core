@@ -1,24 +1,29 @@
+const loadProtocolBuffers = require('@wireapp/protocol-messaging');
+const UUID = require('pure-uuid');
 import * as Proteus from 'wire-webapp-proteus';
-import Client = require('@wireapp/api-client');
-import SessionPayloadBundle from './SessionPayloadBundle';
-import {ClientMismatch, OTRRecipients, UserClients, NewOTRMessage} from '@wireapp/api-client/src/main/conversation';
-import {Context, LoginData} from '@wireapp/api-client/dist/commonjs/auth';
-import {CRUDEngine} from '@wireapp/store-engine/dist/commonjs/engine';
+import {PayloadBundle, SessionPayloadBundle} from './payload/';
+import {ClientMismatch, NewOTRMessage, OTRRecipients, UserClients} from '@wireapp/api-client/src/main/conversation/';
+import {Context, LoginData, PreKey} from '@wireapp/api-client/dist/commonjs/auth/';
+import {ConversationEvent, OTRMessageAdd} from '@wireapp/api-client/dist/commonjs/conversation/event/';
+import {CRUDEngine, MemoryEngine} from '@wireapp/store-engine/dist/commonjs/engine/';
 import {Cryptobox, store} from 'wire-webapp-cryptobox';
-import {Encoder, Decoder} from 'bazinga64';
-import {NewClient, RegisteredClient} from '@wireapp/api-client/dist/commonjs/client/index';
-import {OTRMessageAdd} from '@wireapp/api-client/dist/commonjs/conversation/event';
-import {PreKey} from '@wireapp/api-client/dist/commonjs/auth';
-import {RecordNotFoundError} from '@wireapp/store-engine/dist/commonjs/engine/error';
-import {UserPreKeyBundleMap} from '@wireapp/api-client/dist/commonjs/user';
+import {Decoder, Encoder} from 'bazinga64';
+import {IncomingNotification} from '@wireapp/api-client/dist/commonjs/conversation/';
+import {NewClient, RegisteredClient} from '@wireapp/api-client/dist/commonjs/client/';
+import {RecordNotFoundError} from '@wireapp/store-engine/dist/commonjs/engine/error/';
+import {Root} from 'protobufjs';
+import {UserPreKeyBundleMap} from '@wireapp/api-client/dist/commonjs/user/';
 import {WebSocketClient} from '@wireapp/api-client/dist/commonjs/tcp/';
+import Client = require('@wireapp/api-client');
+import EventEmitter = require('events');
 
-export default class Account {
+export default class Account extends EventEmitter {
   private apiClient: Client;
   private client: RegisteredClient;
   private context: Context;
   private cryptobox: Cryptobox;
   private loginData: LoginData;
+  private protocolBuffers: any = {};
   private storeEngine: CRUDEngine;
 
   static get STORES() {
@@ -27,8 +32,16 @@ export default class Account {
     };
   }
 
-  constructor(loginData: LoginData, storeEngine: CRUDEngine) {
-    this.loginData = loginData;
+  public static INCOMING = {
+    TEXT_MESSAGE: 'Account.INCOMING.TEXT_MESSAGE',
+  };
+
+  constructor(loginData: LoginData, storeEngine: CRUDEngine = new MemoryEngine('temporary')) {
+    super();
+    this.loginData = {
+      persist: false,
+      ...loginData
+    };
     this.storeEngine = storeEngine;
     this.apiClient = new Client({store: storeEngine});
     this.cryptobox = new Cryptobox(new store.CryptoboxCRUDStore(storeEngine));
@@ -94,6 +107,11 @@ export default class Account {
       .then((client: RegisteredClient) => {
         this.apiClient.context.clientID = client.id;
         this.context = this.apiClient.context;
+        return loadProtocolBuffers();
+      })
+      .then((root: Root) => {
+        this.protocolBuffers.GenericMessage = root.lookup('GenericMessage');
+        this.protocolBuffers.Text = root.lookup('Text');
         return this.context;
       });
   }
@@ -150,8 +168,78 @@ export default class Account {
   }
 
   public listen(callback: Function): Promise<WebSocketClient> {
-    this.apiClient.transport.ws.on(WebSocketClient.TOPIC.ON_MESSAGE, (notification: any) => callback(notification));
-    return this.apiClient.connect();
+    return Promise.resolve()
+      .then(() => {
+        if (!this.context) {
+          return this.login();
+        }
+        return undefined;
+      }).then(() => {
+        if (callback) {
+          this.apiClient.transport.ws.on(WebSocketClient.TOPIC.ON_MESSAGE, (notification: IncomingNotification) => callback(notification));
+        } else {
+          this.apiClient.transport.ws.on(WebSocketClient.TOPIC.ON_MESSAGE, this.handleNotification.bind(this));
+        }
+        return this.apiClient.connect();
+      });
+  }
+
+  private handleNotification(notification: IncomingNotification): void {
+    for (const event of notification.payload) {
+      this.handleEvent(event)
+        .then((payload: PayloadBundle) => {
+          if (payload.content) {
+            this.emit(Account.INCOMING.TEXT_MESSAGE, payload)
+          }
+        });
+    }
+  }
+
+  private handleEvent(event: ConversationEvent): Promise<PayloadBundle> {
+    const {conversation, from} = event;
+    return this.decodeEvent(event)
+      .then((content: string) => {
+        return {
+          content,
+          conversation,
+          from,
+        };
+      });
+  }
+
+  private decodeEvent(event: ConversationEvent): Promise<string> {
+    return new Promise((resolve) => {
+      switch (event.type) {
+        case 'conversation.otr-message-add':
+          const otrMessage: OTRMessageAdd = event as OTRMessageAdd;
+          this.decrypt(otrMessage)
+            .then((decryptedMessage: Uint8Array) => {
+              const genericMessage = this.protocolBuffers.GenericMessage.decode(decryptedMessage);
+              switch (genericMessage.content) {
+                case 'text':
+                  resolve(genericMessage.text.content);
+                  break;
+                default:
+                  resolve(undefined);
+              }
+            });
+          break;
+      }
+    });
+  }
+
+  public sendTextMessage(conversationId: string, message: string): Promise<ClientMismatch> {
+    const customTextMessage = this.protocolBuffers.GenericMessage.create({
+      messageId: new UUID(4).format(),
+      text: this.protocolBuffers.Text.create({content: message})
+    });
+
+    return this.getPreKeyBundles(conversationId)
+      .then((preKeyBundles: UserPreKeyBundleMap) => {
+        const typedArray = this.protocolBuffers.GenericMessage.encode(customTextMessage).finish();
+        return this.encrypt(typedArray, preKeyBundles);
+      })
+      .then((payload) => this.sendMessage(conversationId, payload));
   }
 
   public sendMessage(conversationId: string, recipients: OTRRecipients): Promise<ClientMismatch> {
