@@ -9,3 +9,20 @@ For licensing information, see the attached LICENSE file and the list of third-p
 ## wire-web-core
 
 Wire for Web's communication core.
+
+### Example
+
+```javascript
+const {Account} = require('@wireapp/core');
+
+const bot = new Account({
+  email: 'me@wire.com',
+  password: 'top-secret',
+});
+
+bot.on(Account.INCOMING.TEXT_MESSAGE, ({conversation, content}) => {
+    bot.sendTextMessage(conversation, `You wrote: ${content}`);
+});
+
+bot.listen();
+```
