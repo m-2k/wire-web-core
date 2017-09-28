@@ -21,7 +21,7 @@ const bot = new Account({
 });
 
 bot.on(Account.INCOMING.TEXT_MESSAGE, ({conversation, content}) => {
-    bot.sendTextMessage(conversation, `You wrote: ${content}`);
+  bot.sendTextMessage(conversation, `You wrote: ${content}`);
 });
 
 bot.listen();
