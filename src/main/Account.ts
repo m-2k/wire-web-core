@@ -39,7 +39,7 @@ export default class Account extends EventEmitter {
   constructor(loginData: LoginData, storeEngine: CRUDEngine = new MemoryEngine('temporary')) {
     super();
     this.loginData = {
-      persist: (storeEngine instanceof MemoryEngine) ? false : true,
+      persist: !(storeEngine instanceof MemoryEngine),
       ...loginData
     };
     this.storeEngine = storeEngine;
