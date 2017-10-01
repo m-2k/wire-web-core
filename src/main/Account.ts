@@ -20,7 +20,7 @@ import EventEmitter = require('events');
 export default class Account extends EventEmitter {
   private apiClient: Client;
   private client: RegisteredClient;
-  private context: Context;
+  public context: Context;
   private cryptobox: Cryptobox;
   private loginData: LoginData;
   private protocolBuffers: any = {};
@@ -39,7 +39,7 @@ export default class Account extends EventEmitter {
   constructor(loginData: LoginData, storeEngine: CRUDEngine = new MemoryEngine('temporary')) {
     super();
     this.loginData = {
-      persist: false,
+      persist: !(storeEngine instanceof MemoryEngine),
       ...loginData
     };
     this.storeEngine = storeEngine;
