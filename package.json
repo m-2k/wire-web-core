@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@wireapp/api-client": "0.2.5",
+    "@wireapp/api-client": "0.2.6",
     "@wireapp/protocol-messaging": "1.19.0",
     "@wireapp/store-engine": "0.1.0",
     "bazinga64": "5.0.3",
