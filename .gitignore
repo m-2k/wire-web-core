@@ -3,5 +3,6 @@
 /dist
 /node_modules
 /npm-debug.log*
+/secret
 /temp
 /test.js
