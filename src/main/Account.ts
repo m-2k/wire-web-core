@@ -1,7 +1,7 @@
 const loadProtocolBuffers = require('@wireapp/protocol-messaging');
 const UUID = require('pure-uuid');
 import * as Proteus from 'wire-webapp-proteus';
-import {ClientMismatch, NewOTRMessage, OTRRecipients, UserClients} from '@wireapp/api-client/src/main/conversation/';
+import {ClientMismatch, NewOTRMessage, OTRRecipients, UserClients} from '@wireapp/api-client/dist/commonjs/conversation/';
 import {Context, LoginData, PreKey} from '@wireapp/api-client/dist/commonjs/auth/';
 import {ConversationEvent, OTRMessageAdd} from '@wireapp/api-client/dist/commonjs/conversation/event/';
 import {CRUDEngine, MemoryEngine} from '@wireapp/store-engine/dist/commonjs/engine/';
