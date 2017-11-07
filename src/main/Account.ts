@@ -42,6 +42,7 @@ export default class Account extends EventEmitter {
       persist: !(storeEngine instanceof MemoryEngine),
       ...loginData
     };
+    this.sanitizeLoginData();
     this.storeEngine = storeEngine;
     this.apiClient = new Client({store: storeEngine});
     this.cryptobox = new Cryptobox(new store.CryptoboxCRUDStore(storeEngine));
@@ -52,6 +53,22 @@ export default class Account extends EventEmitter {
       .then((initialPreKeys: Array<Proteus.keys.PreKey>) => {
         return this.storeEngine.read<RegisteredClient>(Account.STORES.CLIENTS, store.CryptoboxCRUDStore.KEYS.LOCAL_IDENTITY);
       });
+  }
+
+  private sanitizeLoginData(): void {
+    const removeNonPrintableCharacters = new RegExp('[^\x20-\x7E]+', 'gm');
+
+    if (this.loginData.email) {
+      this.loginData.email = this.loginData.email.replace(removeNonPrintableCharacters, '');
+    }
+
+    if (this.loginData.password) {
+      this.loginData.password = this.loginData.password.toString().replace(removeNonPrintableCharacters, '');
+    }
+
+    if (this.loginData.handle) {
+      this.loginData.handle = this.loginData.handle.replace(removeNonPrintableCharacters, '');
+    }
   }
 
   private registerNewClient(): Promise<RegisteredClient> {
